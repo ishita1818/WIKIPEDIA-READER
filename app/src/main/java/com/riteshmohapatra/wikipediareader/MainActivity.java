@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         this.queue = Volley.newRequestQueue(MainActivity.this);
 
+        // Initialize TextToSpeech engine.
         tts = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int i) {
@@ -65,15 +66,16 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
+        // Initialize the views
         textView = (TextView) findViewById(R.id.textView);
         progress = (ProgressBar) findViewById(R.id.progressBar);
         textViewer = findViewById(R.id.textViewer);
         fab = (FloatingActionButton) findViewById(R.id.volume);
-
         toolbar = (Toolbar)findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayShowCustomEnabled(true);
-        isSearchOpen = false;
+
+        setSupportActionBar(toolbar); // set toolbar as the ActionBar
+
+        isSearchOpen = false; // what is shown - search box or activity title
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -135,15 +137,7 @@ public class MainActivity extends AppCompatActivity {
             super.onBackPressed();
     }
 
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-
-        }
-        return super.dispatchTouchEvent(event);
-    }
-
-    private void search(String query) {
+    private void search(String query) {        // fetches the article and loads it into the viewer.
         textViewer.requestFocus();
         String url = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles=" + encodeURIComponent(query);
 
@@ -151,24 +145,24 @@ public class MainActivity extends AppCompatActivity {
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
 
                     @Override
-                    public void onResponse(JSONObject response) {
-                        progress.setVisibility(View.INVISIBLE);
+                    public void onResponse(JSONObject response) {       // response received
+                        progress.setVisibility(View.INVISIBLE);         // hide the progress bar
                         try {
                             JSONObject pages = response.getJSONObject("query")
                                     .getJSONObject("pages");
-                            String firstPage = pages.keys().next();
+                            String firstPage = pages.keys().next();         // extract the first result
                             String text = pages.getJSONObject(firstPage).getString("extract");
-                            setTitle(pages.getJSONObject(firstPage).getString("title"));
-                            textViewer.setVisibility(View.VISIBLE);
-                            textView.setText(text);
-                        } catch (JSONException ex) {
+                            setTitle(pages.getJSONObject(firstPage).getString("title"));       // set the title to the article title.
+                            textViewer.setVisibility(View.VISIBLE);         // make viewer visible
+                            textView.setText(text);                         // load the content into the viewer.
+                        } catch (JSONException ex) {                        // response could not be parsed.
                             Toast.makeText(MainActivity.this,"Error in parsing response", Toast.LENGTH_SHORT).show();
                         }
                     }
                 }, new Response.ErrorListener() {
 
                     @Override
-                    public void onErrorResponse(VolleyError error) {
+                    public void onErrorResponse(VolleyError error) {        // no response
                         progress.setVisibility(View.INVISIBLE);
                         // todo: view image
                         Toast.makeText(MainActivity.this,"Error in getting response", Toast.LENGTH_SHORT).show();
@@ -179,73 +173,55 @@ public class MainActivity extends AppCompatActivity {
 
         // Add the request to the RequestQueue.
         textViewer.setVisibility(View.INVISIBLE);
-        progress.setVisibility(View.VISIBLE);
+        progress.setVisibility(View.VISIBLE);           // make the progress bar visible
         MainActivity.this.queue.add(jsObjRequest);
-    }
-
-    private void hideSearchBox() {
-        ActionBar action = getSupportActionBar(); //get the actionbar
-
-        action.setDisplayShowCustomEnabled(false); //disable a custom view inside the actionbar
-        action.setDisplayShowTitleEnabled(true); //show the title in the action bar
-
-        //hides the keyboard
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        View view = this.getCurrentFocus();
-        if (view != null)
-            imm.hideSoftInputFromWindow(view.getWindowToken(),0);
-
-        //add the search icon in the action bar
-        searchBtn.setIcon(getResources().getDrawable(R.drawable.ic_open_search));
-
-        isSearchOpen = false;
     }
 
     // Source: http://blog.rhesoft.com/2015/03/30/tutorial-android-actionbar-with-material-design-and-search-field/
     private void handleSearchButton() {
         ActionBar action = getSupportActionBar(); //get the actionbar
 
-        if(isSearchOpen){ //test if the search is open
-            EditText searchInput = (EditText)action.getCustomView().findViewById(R.id.search_input); //the text editor
-            searchInput.getText().clear();
-            searchInput.requestFocus();
+        if(isSearchOpen){ // if search box is shown, the cross button just clears the text
+            EditText searchBox = (EditText)action.getCustomView().findViewById(R.id.search_box);
+            searchBox.getText().clear();
 
-
+            // set focus to the search box and bring up the keyboard in case it wasn't up.
+            searchBox.requestFocus();
             InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-            imm.showSoftInput(searchInput, InputMethodManager.SHOW_IMPLICIT);
+            imm.showSoftInput(searchBox, InputMethodManager.SHOW_IMPLICIT);
 
-        } else { //open the search entry
-            System.out.println(R.layout.searchbox);
-            action.setDisplayShowCustomEnabled(true); //enable it to display a
-            // custom view in the action bar.
-            action.setCustomView(R.layout.searchbox);//add the custom view
-            action.setDisplayShowTitleEnabled(false); //hide the title
+        } else { // if search box is not shown, show the search box
+            action.setDisplayShowCustomEnabled(true);   // enable a custom view in the action bar.
+            action.setCustomView(R.layout.search_box);  // add the custom view (search box)
+            action.setDisplayShowTitleEnabled(false);   // hide the title
 
-            EditText searchInput = (EditText)action.getCustomView().findViewById(R.id.search_input); //the text editor
-            searchInput.requestFocus();
+            EditText searchBox = (EditText)action.getCustomView().findViewById(R.id.search_box);
+            searchBox.requestFocus();
 
+            // bring up the keyboard
             InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-            imm.showSoftInput(searchInput, InputMethodManager.SHOW_IMPLICIT);
+            imm.showSoftInput(searchBox, InputMethodManager.SHOW_IMPLICIT);
 
-            //this is a listener to do a search when the user clicks on search button
-            searchInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            // a listener to perform the actual search
+            searchBox.setOnEditorActionListener(new TextView.OnEditorActionListener() {
                 @Override
                 public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                     if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                        String query = v.getText().toString().trim();
-                        hideSearchBox();
-                        if (tts.isSpeaking()) {
+                        String query = v.getText().toString().trim();   // get the query
+                        hideSearchBox();    // hide the search box
+                        if (tts.isSpeaking()) {     // stop the tts
                             tts.stop();
                             fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_play_arrow));
                         }
-                        search(query);
+                        search(query);      // search the query
                         return true;
                     }
                     return false;
                 }
             });
 
-            searchInput.setOnFocusChangeListener(new OnFocusChangeListener() {
+            // a listener to hide the search box if the user clicks somewhere else.
+            searchBox.setOnFocusChangeListener(new OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     if (!hasFocus) {
@@ -254,11 +230,29 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-            //add the close icon
+            // change search icon to cross
             searchBtn.setIcon(getResources().getDrawable(R.drawable.ic_cancel_search));
 
             isSearchOpen = true;
         }
+    }
+
+    private void hideSearchBox() {                 // hides search box and shows title
+        ActionBar action = getSupportActionBar();  // get the actionbar
+
+        action.setDisplayShowCustomEnabled(false); // disable a custom view inside the actionbar
+        action.setDisplayShowTitleEnabled(true);   // show the title in the action bar
+
+        // hide the keyboard
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        View view = this.getCurrentFocus();
+        if (view != null)
+            imm.hideSoftInputFromWindow(view.getWindowToken(),0);
+
+        // change icon in the action bar to search
+        searchBtn.setIcon(getResources().getDrawable(R.drawable.ic_open_search));
+
+        isSearchOpen = false;   // search box is not shown anymore
     }
 
     private static String encodeURIComponent(String s)
