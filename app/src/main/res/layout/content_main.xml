@@ -6,7 +6,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:clipToPadding="false"
-    android:padding="15dp"
+    android:padding="@dimen/layout_margin"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/activity_main" >
 
@@ -33,6 +33,7 @@
                 android:id="@+id/textView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingBottom="@dimen/viewer_margin"
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
                 android:textSize="24sp"
 
