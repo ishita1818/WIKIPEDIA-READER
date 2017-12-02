@@ -5,8 +5,6 @@
     android:layout_height="match_parent"
     xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
-    android:clipToPadding="false"
-    android:padding="@dimen/layout_margin"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:showIn="@layout/activity_main" >
 
@@ -18,9 +16,8 @@
             android:id="@+id/progressBar"
             android:visibility="invisible"
             android:layout_centerInParent="true"
-            style="?android:attr/progressBarStyle"
-            android:layout_width="128dp"
-            android:layout_height="128dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:indeterminate="true" />
 
         <ScrollView
@@ -33,9 +30,12 @@
                 android:id="@+id/textView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingTop="@dimen/layout_margin"
+                android:paddingStart="@dimen/layout_margin"
+                android:paddingEnd="@dimen/layout_margin"
                 android:paddingBottom="@dimen/viewer_margin"
                 android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-                android:textSize="24sp"
+                android:textSize="20sp"
 
                 android:clickable="true"
                 android:focusable="true"
