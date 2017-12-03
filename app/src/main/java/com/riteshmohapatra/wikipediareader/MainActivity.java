@@ -12,6 +12,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnFocusChangeListener;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,6 +23,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.squareup.picasso.Picasso;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,6 +32,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Locale;
 
+import com.squareup.picasso.Picasso.*;
+
 public class MainActivity extends AppCompatActivity {
 
     private RequestQueue queue;
@@ -37,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     // viewer
     private TextView textView;
+    private ImageView imageView;
     private ProgressBar progress;
     private View textViewer;
 
@@ -60,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize the views
         textView = (TextView) findViewById(R.id.textView);
+        imageView = (ImageView) findViewById(R.id.image);
         progress = (ProgressBar) findViewById(R.id.progressBar);
         textViewer = findViewById(R.id.textViewer);
         fab = (FloatingActionButton) findViewById(R.id.volume);
@@ -148,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void search(String query) {        // fetches the article and loads it into the viewer.
         textViewer.requestFocus();
-        String url = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&titles=" + encodeURIComponent(query);
+        String url = "https://en.wikipedia.org/w/api.php?action=query&prop=pageimages|extracts&format=json&piprop=thumbnail&pithumbsize=300&titles=" + encodeURIComponent(query);
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
@@ -156,12 +162,18 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(JSONObject response) {       // response received
                         progress.setVisibility(View.INVISIBLE);         // hide the progress bar
+                        imageView.setVisibility(View.GONE);
                         try {
                             JSONObject pages = response.getJSONObject("query")
                                     .getJSONObject("pages");
                             String firstPage = pages.keys().next();         // extract the first result
                             String text = pages.getJSONObject(firstPage).getString("extract");
                             setTitle(pages.getJSONObject(firstPage).getString("title"));       // set the title to the article title.
+                            try {       // not all articles have images
+                                String imgurl = pages.getJSONObject(firstPage).getJSONObject("thumbnail").getString("source");
+                                imageView.setVisibility(View.VISIBLE);
+                                Picasso.with(getApplicationContext()).load(imgurl).placeholder(R.drawable.placeholder).resize(600,0).into(imageView);
+                            } catch (JSONException e) { } // do nothing
                             textViewer.setVisibility(View.VISIBLE);         // make viewer visible
                             textView.setText(Html.fromHtml(text));          // load the content into the viewer.
                         } catch (JSONException ex) {                        // response could not be parsed.
