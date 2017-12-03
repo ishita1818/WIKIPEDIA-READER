@@ -7,6 +7,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.text.Html;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -74,7 +75,14 @@ public class MainActivity extends AppCompatActivity {
                     fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_play_arrow));
                 } else {
                     fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_stop));
-                    tts.speak(textView.getText().toString(), TextToSpeech.QUEUE_FLUSH, null);
+                    // flush the tts queue
+                    tts.speak(" ", TextToSpeech.QUEUE_FLUSH, null);
+
+                    // Divide string into chunks
+                    String article = textView.getText().toString();
+                    for (int index = 0; index < article.length(); index += 3000)
+                        tts.speak(article.substring(index, Math.min(index + 3000,article.length())),
+                                  TextToSpeech.QUEUE_ADD, null); // add chunk to queue
                 }
             }
         });
@@ -140,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void search(String query) {        // fetches the article and loads it into the viewer.
         textViewer.requestFocus();
-        String url = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles=" + encodeURIComponent(query);
+        String url = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&titles=" + encodeURIComponent(query);
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
@@ -155,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
                             String text = pages.getJSONObject(firstPage).getString("extract");
                             setTitle(pages.getJSONObject(firstPage).getString("title"));       // set the title to the article title.
                             textViewer.setVisibility(View.VISIBLE);         // make viewer visible
-                            textView.setText(text);                         // load the content into the viewer.
+                            textView.setText(Html.fromHtml(text));          // load the content into the viewer.
                         } catch (JSONException ex) {                        // response could not be parsed.
                             Toast.makeText(MainActivity.this,"Error in parsing response", Toast.LENGTH_SHORT).show();
                         }
