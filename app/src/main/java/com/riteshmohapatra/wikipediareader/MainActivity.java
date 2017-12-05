@@ -12,7 +12,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnFocusChangeListener;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,14 +28,15 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.squareup.picasso.Picasso;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-
-import com.squareup.picasso.Picasso.*;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -44,6 +48,11 @@ public class MainActivity extends AppCompatActivity {
     private ImageView imageView;
     private ProgressBar progress;
     private View textViewer;
+
+    // results
+    private ListView resultsList;
+    private List<String> results = new ArrayList<String>();
+    private ArrayAdapter<String> adapter;
 
     private FloatingActionButton fab;
 
@@ -68,10 +77,21 @@ public class MainActivity extends AppCompatActivity {
         imageView = (ImageView) findViewById(R.id.image);
         progress = (ProgressBar) findViewById(R.id.progressBar);
         textViewer = findViewById(R.id.textViewer);
+        resultsList = (ListView) findViewById(R.id.results);
         fab = (FloatingActionButton) findViewById(R.id.volume);
 
         Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
         setSupportActionBar(toolbar); // set toolbar as the ActionBar
+
+        adapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,results);
+        resultsList.setAdapter(adapter);
+        resultsList.setItemsCanFocus(false);
+        resultsList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                display(results.get(position));
+            }
+        });
 
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -152,9 +172,59 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    private void search(String query) {        // fetches the article and loads it into the viewer.
+    @Override
+    public void onBackPressed() {
+        if (results.size() > 0 && resultsList.getVisibility() != View.VISIBLE) {
+            setTitle("Search Results");
+            textViewer.setVisibility(View.INVISIBLE);
+            resultsList.setVisibility(View.VISIBLE);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void search(String query) {
+        String url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srprop=&format=json&srsearch=" + encodeURIComponent(query);
+
+        JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+
+                    @Override
+                    public void onResponse(JSONObject response) {       // response received
+                        progress.setVisibility(View.INVISIBLE);
+                        try {
+                            JSONArray jsonresults = response.getJSONObject("query").getJSONArray("search");
+                            for (int i=0; i<jsonresults.length(); i++)
+                                results.add(jsonresults.getJSONObject(i).getString("title"));
+                            adapter.notifyDataSetChanged();
+                        } catch (JSONException ex) {                        // response could not be parsed.
+                            Toast.makeText(MainActivity.this,"Error in parsing response", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }, new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {        // no response
+                        //progress.setVisibility(View.INVISIBLE);
+                        // todo: view image
+                        Toast.makeText(MainActivity.this,"Error in getting response", Toast.LENGTH_SHORT).show();
+
+                    }
+                });
+
+
+        // Add the request to the RequestQueue.
+        textViewer.setVisibility(View.INVISIBLE);
+        progress.setVisibility(View.VISIBLE);           // make the progress bar visible
+        results.clear(); adapter.notifyDataSetChanged();
+        resultsList.setVisibility(View.VISIBLE);
+        setTitle("Search Results");
+        MainActivity.this.queue.add(jsObjRequest);
+    }
+
+    private void display(String title) {        // fetches the article and loads it into the viewer.
         textViewer.requestFocus();
-        String url = "https://en.wikipedia.org/w/api.php?action=query&prop=pageimages|extracts&format=json&piprop=thumbnail&pithumbsize=300&titles=" + encodeURIComponent(query);
+        String url = "https://en.wikipedia.org/w/api.php?action=query&prop=pageimages|extracts&format=json&piprop=thumbnail&pithumbsize=300&titles=" + encodeURIComponent(title);
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
                 (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
@@ -164,11 +234,9 @@ public class MainActivity extends AppCompatActivity {
                         progress.setVisibility(View.INVISIBLE);         // hide the progress bar
                         imageView.setVisibility(View.GONE);
                         try {
-                            JSONObject pages = response.getJSONObject("query")
-                                    .getJSONObject("pages");
+                            JSONObject pages = response.getJSONObject("query").getJSONObject("pages");
                             String firstPage = pages.keys().next();         // extract the first result
                             String text = pages.getJSONObject(firstPage).getString("extract");
-                            setTitle(pages.getJSONObject(firstPage).getString("title"));       // set the title to the article title.
                             try {       // not all articles have images
                                 String imgurl = pages.getJSONObject(firstPage).getJSONObject("thumbnail").getString("source");
                                 imageView.setVisibility(View.VISIBLE);
@@ -193,13 +261,14 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Add the request to the RequestQueue.
+        setTitle(title);
         textViewer.setVisibility(View.INVISIBLE);
         progress.setVisibility(View.VISIBLE);           // make the progress bar visible
+        resultsList.setVisibility(View.INVISIBLE);
         MainActivity.this.queue.add(jsObjRequest);
     }
 
-    private static String encodeURIComponent(String s)
-    {
+    private static String encodeURIComponent(String s) {
         String result;
 
         try
@@ -221,5 +290,4 @@ public class MainActivity extends AppCompatActivity {
 
         return result;
     }
-
 }
