@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayAdapter<String> adapter;
 
     private FloatingActionButton fab;
+    private View emptyView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         textViewer = findViewById(R.id.textViewer);
         resultsList = (ListView) findViewById(R.id.results);
         fab = (FloatingActionButton) findViewById(R.id.volume);
+        emptyView = findViewById(R.id.empty_view);
+        emptyView.setVisibility(View.VISIBLE);
 
         Toolbar toolbar = (Toolbar)findViewById(R.id.toolbar);
         setSupportActionBar(toolbar); // set toolbar as the ActionBar
@@ -96,19 +99,23 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (tts.isSpeaking()) {
-                    tts.stop();
-                    fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_play_arrow));
+                if (!isTextVisible) {
+                    tts.speak("Please search something first.", TextToSpeech.QUEUE_FLUSH, null);
                 } else {
-                    fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_stop));
-                    // flush the tts queue
-                    tts.speak(" ", TextToSpeech.QUEUE_FLUSH, null);
+                    if (tts.isSpeaking()) {
+                        tts.stop();
+                        fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_play_arrow));
+                    } else {
+                        fab.setImageDrawable(ContextCompat.getDrawable(MainActivity.this, R.drawable.ic_stop));
+                        // flush the tts queue
+                        tts.speak(" ", TextToSpeech.QUEUE_FLUSH, null);
 
-                    // Divide string into chunks
-                    String article = textView.getText().toString();
-                    for (int index = 0; index < article.length(); index += 3000)
-                        tts.speak(article.substring(index, Math.min(index + 3000,article.length())),
-                                  TextToSpeech.QUEUE_ADD, null); // add chunk to queue
+                        // Divide string into chunks
+                        String article = textView.getText().toString();
+                        for (int index = 0; index < article.length(); index += 3000)
+                            tts.speak(article.substring(index, Math.min(index + 3000, article.length())),
+                                    TextToSpeech.QUEUE_ADD, null); // add chunk to queue
+                    }
                 }
             }
         });
@@ -118,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         this.tts.stop();
-        this.queue.stop();
+        //this.queue.stop();
     }
 
     @Override
@@ -139,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
 
         final MenuItem searchMenuItem = menu.findItem(R.id.action_search);
         final SearchView searchView = (SearchView)searchMenuItem.getActionView();
+
         searchView.setQueryHint("Search Wikipedia");
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override       // what happens when the user submits a query
@@ -176,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (results.size() > 0 && resultsList.getVisibility() != View.VISIBLE) {
             setTitle("Search Results");
+            isTextVisible=false;
             textViewer.setVisibility(View.INVISIBLE);
             resultsList.setVisibility(View.VISIBLE);
         } else {
@@ -184,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void search(String query) {
+        isTextVisible=false;
         String url = "https://en.wikipedia.org/w/api.php?action=query&list=search&srprop=&format=json&srsearch=" + encodeURIComponent(query);
 
         JsonObjectRequest jsObjRequest = new JsonObjectRequest
@@ -214,6 +224,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         // Add the request to the RequestQueue.
+        emptyView.setVisibility(View.INVISIBLE);
         textViewer.setVisibility(View.INVISIBLE);
         progress.setVisibility(View.VISIBLE);           // make the progress bar visible
         results.clear(); adapter.notifyDataSetChanged();
@@ -221,6 +232,8 @@ public class MainActivity extends AppCompatActivity {
         setTitle("Search Results");
         MainActivity.this.queue.add(jsObjRequest);
     }
+
+    private boolean isTextVisible= false;
 
     private void display(String title) {        // fetches the article and loads it into the viewer.
         textViewer.requestFocus();
@@ -239,9 +252,12 @@ public class MainActivity extends AppCompatActivity {
                             String text = pages.getJSONObject(firstPage).getString("extract");
                             try {       // not all articles have images
                                 String imgurl = pages.getJSONObject(firstPage).getJSONObject("thumbnail").getString("source");
+
                                 imageView.setVisibility(View.VISIBLE);
                                 Picasso.with(getApplicationContext()).load(imgurl).placeholder(R.drawable.placeholder).resize(600,0).into(imageView);
                             } catch (JSONException e) { } // do nothing
+                            isTextVisible=true;
+                            emptyView.setVisibility(View.GONE);
                             textViewer.setVisibility(View.VISIBLE);         // make viewer visible
                             textView.setText(Html.fromHtml(text));          // load the content into the viewer.
                         } catch (JSONException ex) {                        // response could not be parsed.
